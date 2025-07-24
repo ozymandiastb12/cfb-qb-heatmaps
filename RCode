@@ -1,0 +1,168 @@
+# Simple version - Drew Allar Heatmap
+library(tidyverse)
+library(ggplot2)
+
+# Load data
+print("Loading data...")
+passing_data <- read_csv("~/Downloads/passing_depth.csv")
+
+print("Data loaded successfully!")
+print(paste("Dataset has", nrow(passing_data), "players"))
+
+# Check first few players
+print("First 5 players:")
+print(head(passing_data$player, 5))
+
+# Search for Drew Allar
+print("Searching for Drew Allar...")
+allar_rows <- which(grepl("Allar", passing_data$player, ignore.case = TRUE))
+print(paste("Found", length(allar_rows), "matches for 'Allar'"))
+
+if (length(allar_rows) > 0) {
+  drew_data <- passing_data[allar_rows[1], ]
+  print(paste("Found:", drew_data$player, "-", drew_data$team_name))
+  
+  # Create simple heatmap data
+  heatmap_df <- data.frame(
+    x = rep(c("Left", "Center", "Right"), 4),
+    y = rep(c("Deep", "Medium", "Short", "Behind LOS"), each = 3),
+    accuracy = c(
+      drew_data$left_deep_accuracy_percent,
+      drew_data$center_deep_accuracy_percent,
+      drew_data$right_deep_accuracy_percent,
+      drew_data$left_medium_accuracy_percent,
+      drew_data$center_medium_accuracy_percent,
+      drew_data$right_medium_accuracy_percent,
+      drew_data$left_short_accuracy_percent,
+      drew_data$center_short_accuracy_percent,
+      drew_data$right_short_accuracy_percent,
+      drew_data$left_behind_los_accuracy_percent,
+      drew_data$center_behind_los_accuracy_percent,
+      drew_data$right_behind_los_accuracy_percent
+    )
+  )
+  
+  # Set factor levels
+  heatmap_df$x <- factor(heatmap_df$x, levels = c("Left", "Center", "Right"))
+  heatmap_df$y <- factor(heatmap_df$y, levels = c("Behind LOS", "Short", "Medium", "Deep"))
+  
+  print("Creating heatmap...")
+  
+  # Team color mapping
+  team_colors <- list(
+    "PENN STATE" = "#041E42",      # Penn State Navy
+    "OHIO ST" = "#BB0000",         # Ohio State Scarlet
+    "MICHIGAN" = "#00274C",        # Michigan Navy
+    "TEXAS" = "#BF5700",           # Texas Orange
+    "ALABAMA" = "#9E1B32",         # Alabama Crimson
+    "GEORGIA" = "#BA0C2F",         # Georgia Red
+    "OREGON" = "#154733",          # Oregon Green
+    "USC" = "#990000",             # USC Cardinal
+    "NOTRE DAME" = "#0C2340",      # Notre Dame Navy
+    "FLORIDA" = "#0021A5",         # Florida Blue
+    "LSU" = "#461D7C",             # LSU Purple
+    "CLEMSON" = "#F56600",         # Clemson Orange
+    "OKLAHOMA" = "#841617",        # Oklahoma Crimson
+    "WASHINGTON" = "#4B2E83",      # Washington Purple
+    "MIAMI" = "#F47321"            # Miami Orange
+  )
+  
+  # Get team color, default to dark green if not found
+  title_color <- ifelse(drew_data$team_name %in% names(team_colors), 
+                       team_colors[[drew_data$team_name]], 
+                       "#1B5E20")
+  
+  # Create enhanced plot
+  p <- ggplot(heatmap_df, aes(x = x, y = y, fill = accuracy)) +
+    geom_tile(color = "white", linewidth = 2, alpha = 0.9) +
+    scale_fill_gradient2(
+      low = "#FFD700",        # Gold for low accuracy
+      mid = "#7CB342",        # Medium green
+      high = "#1B5E20",       # Dark forest green for high accuracy
+      midpoint = 65,
+      na.value = "grey90",
+      name = "Accuracy %",
+      breaks = c(30, 50, 70, 90),
+      labels = c("30%", "50%", "70%", "90%")
+    ) +
+    geom_text(aes(label = paste0(round(accuracy, 1), "%")), 
+              color = "white", 
+              fontface = "plain",
+              size = 5.5) +
+    labs(
+      title = paste(drew_data$player, "-", drew_data$team_name),
+      subtitle = "Passing Accuracy by Field Section",
+      x = "Field Width", 
+      y = "Field Depth",
+      caption = "Data: PFF | @cpatfbanalysis"
+    ) +
+    theme_minimal() +
+    theme(
+      # Title styling
+      plot.title = element_text(
+        hjust = 0.5, 
+        size = 18, 
+        face = "bold",
+        color = title_color,
+        margin = margin(b = 5)
+      ),
+      plot.subtitle = element_text(
+        hjust = 0.5, 
+        size = 14,
+        color = "grey30",
+        margin = margin(b = 20)
+      ),
+      plot.caption = element_text(
+        hjust = 1,
+        size = 10,
+        color = "grey50"
+      ),
+      
+      # Axis styling
+      axis.title = element_text(
+        size = 13, 
+        face = "bold",
+        color = "grey20"
+      ),
+      axis.text = element_text(
+        size = 12,
+        color = "grey30"
+      ),
+      
+      # Legend styling
+      legend.title = element_text(
+        size = 12,
+        face = "bold",
+        color = "grey20"
+      ),
+      legend.text = element_text(
+        size = 11,
+        color = "grey30"
+      ),
+      legend.position = "right",
+      legend.key.height = unit(1.2, "cm"),
+      legend.key.width = unit(0.8, "cm"),
+      
+      # Panel styling
+      panel.grid = element_blank(),
+      panel.background = element_rect(fill = "white", color = NA),
+      plot.background = element_rect(fill = "#FAFAFA", color = NA),
+      plot.margin = margin(20, 20, 20, 20)
+    ) +
+    coord_fixed(ratio = 1) +
+    
+    # Add subtle drop shadow effect with annotation
+    annotate("rect", 
+             xmin = 0.55, xmax = 3.45, 
+             ymin = 0.55, ymax = 4.45,
+             fill = NA, 
+             color = "grey70", 
+             linewidth = 0.5,
+             alpha = 0.3)
+  
+  print(p)
+  
+} else {
+  print("Drew Allar not found. Here are some player names:")
+  print(head(passing_data$player, 20))
+}
